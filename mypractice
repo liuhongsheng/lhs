@@ -1,3 +1,5 @@
+
+//将整数转换成二进制数
 int int2bin(int in, char *out)
 {
     int i, j, k;
