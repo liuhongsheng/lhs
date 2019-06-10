@@ -1,4 +1,59 @@
-#include "common/cwinhttp.h"
+#include "cwinhttp.h"
+
+
+vector<string> Split2String(const string& strInput, const string& strSeparator, bool returnIncludeEmptyStr = false)
+{
+	vector<string> vecResult;
+
+	size_t last = 0;
+	size_t index = strInput.find_first_of(strSeparator, last);
+	while (string::npos != index)
+	{
+		string strElement = strInput.substr(last, index - last);
+		if ((!strElement.empty()) || returnIncludeEmptyStr)
+		{
+			vecResult.push_back(strElement);
+		}
+		last = index + 1;
+		index = strInput.find_first_of(strSeparator, last);
+	}
+
+	string strElement = strInput.substr(last, index - last);
+	if ((!strElement.empty()) || returnIncludeEmptyStr)
+	{
+		vecResult.push_back(strElement);
+	}
+
+	return vecResult;
+}
+
+
+static map<string, string> SplitTwice2String(const string& strInput, const string& strSeparator, const string& strSeparator2)
+{
+	map<string, string> mapResult;
+
+	vector<string> vec = Split2String(strInput, strSeparator);
+	size_t maxVec = vec.size();
+	for (size_t iIndex = 0; iIndex < maxVec; iIndex++)
+	{
+		vector<string> vecTmp = Split2String(vec[iIndex], strSeparator2);
+		if (2 == vecTmp.size())
+		{
+			mapResult.insert(pair<string, string>(vecTmp[0], vecTmp[1]));
+		}
+		else if (1 == vecTmp.size())
+		{
+			mapResult.insert(pair<string, string>(vecTmp[0], ""));
+		}
+		else
+		{
+			continue;
+		}
+	}
+	return mapResult;
+}
+
+
 
 string ws2s(const wstring& ws)
 {
@@ -70,7 +125,7 @@ int protocol::CWinHttp::Request(const string strUrl, const string strMethod)
 	LPCWSTR pszAgentW = wstrAgent.c_str();
 	LPCWSTR pswzServerName = UrlElements.wstrHostName.empty() ? NULL : UrlElements.wstrHostName.c_str();
 	LPCWSTR pwszVerb = wstrVerb.c_str();
-	LPCWSTR pwszObjectName = UrlElements.wstrUrlPath.empty() ? NULL : UrlElements.wstrUrlPath.c_str();
+	LPCWSTR pwszObjectName = UrlElements.wstrUrlPath.empty() ? L"/" : UrlElements.wstrUrlPath.c_str();
 
 	LPCWSTR pwszAcceptTypes = wstrAcceptType.c_str();
 	LPCWSTR *ppwszAcceptTypes = &pwszAcceptTypes;
@@ -173,6 +228,8 @@ int protocol::CWinHttp::Request(LPCWSTR pszAgentW, LPCWSTR pswzServerName, LPCWS
 	// Keep checking for data until there is nothing left.
 	if (bResults)
 	{
+		string strRespData;
+		lpResponse->dwDataSize = 0;
 		do
 		{
 			// Check for available data.
@@ -204,11 +261,16 @@ int protocol::CWinHttp::Request(LPCWSTR pszAgentW, LPCWSTR pswzServerName, LPCWS
 						lpResponse->dwDataSize = 0;
 					}
 
-					lpResponse->lpData = pszOutBuffer;
-					lpResponse->dwDataSize = dwDownloaded;
+					strRespData.append(pszOutBuffer, dwSize);
+					lpResponse->dwDataSize += dwDownloaded;
+					delete[] pszOutBuffer;
 				}
 			}
 		} while (dwSize > 0);
+
+		lpResponse->lpData = new char[lpResponse->dwDataSize];
+		memset(lpResponse->lpData, 0, lpResponse->dwDataSize);
+		memcpy(lpResponse->lpData, strRespData.data(), lpResponse->dwDataSize);
 	}
 
 	// First, use WinHttpQueryHeaders to obtain the size of the buffer.
@@ -346,15 +408,20 @@ wstring protocol::CWinHttp::CreateHeaders()
 	}
 
 	vector<string> vecHeaders(m_setHeaders.begin(), m_setHeaders.end());
-	for (size_t i = 0; i < vecHeaders.size() -1; ++i)
+	for (size_t i = 0; i < vecHeaders.size() - 1; ++i)
 	{
 		wstrHeaders += s2ws(vecHeaders[i]) + L"\r\n";
 	}
-	wstrHeaders += s2ws(vecHeaders[vecHeaders.size()-1]);
+	wstrHeaders += s2ws(vecHeaders[vecHeaders.size() - 1]);
 
 	//printf("%S\n", wstrHeaders.c_str());
 
 	return wstrHeaders;
+}
+
+map<string, string> protocol::CWinHttp::ParseHeaders(string strSrc)
+{
+	return SplitTwice2String(strSrc, "\r\n", ":");
 }
 
 

@@ -20,6 +20,7 @@
 
 using std::set;
 using std::map;
+using std::pair;
 using std::vector;
 using std::string;
 using std::wstring;
@@ -115,10 +116,13 @@ namespace protocol
 
 		static const URL_ELEMENT &ResolvUrl(string strUrl, URL_ELEMENT &UrlElements);
 
-		VOID reset();
+		map<string, string> ParseHeaders(string strSrc);
+
 
 	private:
 		VOID init();
+
+		VOID reset();
 
 		wstring CreateHeaders();
 

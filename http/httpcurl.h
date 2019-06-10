@@ -1,47 +1,87 @@
-﻿
 #ifndef _HTTPCURL_H_
 #define _HTTPCURL_H_
 
-#include <string>
+#include "curl.h"
+
 #include <set>
-#include <curl/curl.h>
+#include <map>
+#include <string>
 
-namespace tools
+
+namespace protocol
 {
-    using std::set;
-    using std::string;
+	using std::set;
+	using std::map;
+	using std::string;
 
-    class CHttpcurl
+	class CHttpcurl
 	{
 	public:
-        CHttpcurl();
-        ~CHttpcurl();
+		CHttpcurl();
+		~CHttpcurl();
+
+		typedef enum
+		{
+			ENUM_START = 0,
+			HTTP_GET = 1,
+			HTTP_POST = 2,
+			HTTP_PUT = 3,
+			HTTP_DELETE = 4,
+			ENUM_END
+		}E_HTTP_ACTION;
+
+		typedef struct _SSL_ATTR
+		{
+			string strCertDir;
+			string strSSLKey;
+			string strSSLCert;
+			string strSSLPwd;
+			string strSSLType;
+		}SSL_ATTR, *LPSSL_ATTR;
 
 		int SetCert();
-        int SetCertForParam(const string& strCacertDir, const string& strPwd);
 
-        int SetTimeOut(int iTimeOut);
-        int SetUserPwd( const string& strUserPwd );
-        void AddHttpHeader(const string& strHeader);
+		int SetTimeOut(int iTimeOut);
 
-        void setCookieFile(const string &strFile) {m_strCookieFile = strFile;};
+		int SetUserPwd(const string& strUserPwd);
 
-        int Get(const string& strUrl, string& strReply);
-        int Post(const string& strUrl, const string& strRequest, string& strReply);
+		void AddHttpHeader(const string& strHeader);
 
-        string GetRemoteIP(){ return m_strRemoteIP;}
+		void SetCookieFile(const string &strCookieFile) { m_strCookieFile = strCookieFile; }
+
+		void SetSSLAttr(const LPSSL_ATTR lpSSLAttr) { m_lpSSLAttr = lpSSLAttr; }
+
+		int Get(const string& strUrl, string& strReply);
+
+		int Post(const string& strUrl, const string& strRequest, string& strReply);
+
+		string GetRemoteIP(void) const { return m_strRemoteIP; }
+
+		map<string, string> GetCookies() const { return m_mapCookies; }
 
 	private:
-		int Init();
+		int Init(void);
+
+		void SetRemoteIP(void);
+
+		void SetCookie(struct curl_slist *cookies);
+
+		void SetHttpAction(const E_HTTP_ACTION eAct);
+
+		void SetHeaders(const set<string> &setHeaders, struct curl_slist *headers);
+
+		int Request(const string& strUrl, const E_HTTP_ACTION eAct, const string& strRequest, string& strReply);
+
 		static size_t WriteDataCallback(void *ptr, size_t size, size_t nCount, void *pData);
 
 		CURL *m_pCurl;
-        string m_strRemoteIP;
-        string m_strCookieFile;
-
-        set<string> m_setHeaders;
+		LPSSL_ATTR m_lpSSLAttr;
+		string m_strRemoteIP;
+		string m_strCookieFile;
+		set<string> m_setHeaders;
+		map<string, string> m_mapCookies;
 	};
+
 }
 
 #endif //_HTTPCURL_H_
-
